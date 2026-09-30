@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Experimenta con las bases numéricas y aprende cada conversión con potencias, divisiones y tablas. Funciona sin Internet.">
+  <title>Conversor de Bases Numéricas</title>
+  <style>
+    /* CSS nativo. Laboratorio educativo: variación 4, movimiento 2, densidad 6.
+       Superficies de 12 px; controles de 6 px. Una sola paleta azul sobre grafito. */
+    :root {
+      color-scheme: dark;
+      --bg: #101318; --panel: #191e26; --raised: #202733; --input: #12171e;
+      --line: #364254; --control-line: #63748d; --muted: #a7b3c6; --text: #edf2fa;
+      --blue: #91bdff; --blue-deep: #253c5c; --blue-ink: #14243c;
+      --error: #ffb4ad; --radius: 12px;
+      --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.55; }
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    button { color: inherit; }
+    button, input, select, summary, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    button { transition: background-color .15s, border-color .15s; }
+    button:hover:not(:disabled) { border-color: var(--blue); }
+    h1, h2, h3, h4, p { margin: 0; }
+    h1 { font-size: clamp(24px, 2.3vw, 34px); letter-spacing: -.045em; line-height: 1.15; font-weight: 650; }
+    h2 { font-size: 21px; letter-spacing: -.025em; font-weight: 650; }
+    h3 { font-size: 17px; font-weight: 650; }
+    h4 { font-size: 15px; font-weight: 650; }
+    sub { font-size: .6em; line-height: 0; vertical-align: -.3em; margin-left: 3px; color: var(--blue); }
+    sup { font-size: .75em; }
+    .mono, input, .number, td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .muted, .help { color: var(--muted); }
+    .help { font-size: 12px; line-height: 1.5; }
+    .accent { color: var(--blue); }
+    [hidden] { display: none !important; }
+    .skip-link { position: fixed; z-index: 10; left: 20px; top: -100px; padding: 12px; background: var(--blue); color: var(--blue-ink); }
+    .skip-link:focus { top: 10px; }
+    .page { padding: 28px clamp(16px, 2.2vw, 40px) 20px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-bottom: 26px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+    .identity { display: flex; gap: 18px; align-items: center; }
+    .math-mark { display: grid; place-items: center; flex: 0 0 54px; height: 54px; font: 25px var(--mono); color: var(--blue); border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+    .page-header p { margin-top: 9px; color: var(--muted); font-size: 14px; }
+    .header-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+    .offline { color: var(--muted); font-size: 12px; }
+    .button { border: 1px solid var(--control-line); background: var(--raised); padding: 9px 13px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
+    .workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 28px; align-items: start; }
+    .sidebar, .lesson { min-width: 0; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+    .converter { padding: 22px; }
+    .section-intro { margin: 6px 0 20px; color: var(--muted); font-size: 13px; }
+    .quick-values { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0 22px; }
+    .quick { padding: 5px 10px; border: 1px solid var(--control-line); background: transparent; border-radius: 6px; font: 12px var(--mono); }
+    .quick[aria-pressed="true"] { background: var(--blue-deep); color: var(--blue); border-color: var(--blue); }
+    .field + .field { margin-top: 20px; }
+    .field-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .field-heading label { font-size: 14px; font-weight: 600; }
+    .base-label { color: var(--muted); font-size: 11px; font-weight: 400; margin-left: 6px; }
+    .copy { border: 0; background: none; font-size: 11px; color: var(--blue); padding: 5px 0 5px 8px; }
+    input, select { border: 1px solid var(--control-line); background: var(--input); color: var(--text); border-radius: 6px; min-width: 0; }
+    input { padding: 10px 12px; width: 100%; font-size: 18px; }
+    input[aria-invalid="true"] { border-color: var(--error); }
+    input::placeholder { color: var(--muted); opacity: 1; }
+    .field .help { margin-top: 5px; font-size: 11px; }
+    .scope { padding-top: 18px; margin-top: 22px; border-top: 1px solid var(--line); }
+    .error { color: var(--error); background: #332324; border: 1px solid #7e4c4b; border-radius: 6px; padding: 12px; margin-top: 16px; font-size: 13px; }
+    .bits-panel { margin-top: 18px; padding: 20px 18px; }
+    .bits-panel h2 { font-size: 16px; }
+    #raw-16bit { margin: 15px 0 12px; letter-spacing: .12em; color: var(--blue); font-size: 14px; }
+    .bits { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+    .bit { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0; background: var(--input); border: 1px solid var(--control-line); border-radius: 6px; }
+    .bit span { font: 17px var(--mono); }
+    .bit small { font: 9px var(--mono); color: var(--muted); margin-top: 4px; }
+    .bit[aria-pressed="true"] { background: var(--blue-deep); border-color: #688fc1; color: var(--blue); }
+    .bit-note { margin-top: 12px; }
+    .stats { margin: 18px 0 0; padding: 0; }
+    .stats div { padding: 10px 0; display: flex; gap: 12px; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--line); }
+    .stats dt { color: var(--muted); font-size: 11px; }
+    .stats dd { font-family: var(--mono); font-size: 11px; margin: 0; text-align: right; }
+    .lesson-header { margin-bottom: 18px; }
+    .lesson-header p { color: var(--muted); font-size: 14px; margin-top: 5px; }
+    .base-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; align-items: center; margin-bottom: 20px; }
+    .base-choice { padding: 16px 18px; }
+    .choice-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .choice-top label { font-size: 12px; font-weight: 600; color: var(--blue); white-space: nowrap; }
+    .choice-top select { padding: 7px 9px; flex: 1; width: 100%; font-size: 13px; }
+    .pair-label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .pair-input { color: var(--blue); font-size: 23px; letter-spacing: .025em; }
+    .swap { width: 38px; height: 38px; padding: 0; font-size: 21px; }
+    .method-key { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 0 21px; }
+    .method-key p { font-size: 12px; color: var(--muted); }
+    .method-key strong { display: block; font-size: 13px; color: var(--text); margin-bottom: 3px; font-weight: 600; }
+    .method-key span { color: var(--blue); margin-right: 5px; font: 16px var(--mono); }
+    .directions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .direction { overflow: hidden; min-width: 0; }
+    .direction-header { padding: 18px 22px; background: var(--raised); border-bottom: 1px solid var(--line); }
+    .direction-heading { display: flex; gap: 10px; align-items: center; }
+    .direction-tag { font: 11px var(--mono); color: var(--blue); border: 1px solid #6486b3; border-radius: 4px; padding: 3px 6px; white-space: nowrap; }
+    .direction-header h3 { font-size: 15px; }
+    .equation { font-family: var(--mono); font-size: 20px; line-height: 1.8; overflow-wrap: anywhere; margin-top: 10px; }
+    .equation .equals { color: var(--muted); padding: 0 5px; }
+    .direction-body { padding: 20px 22px; }
+    .operation + .operation { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 22px; }
+    .operation h4 { display: flex; align-items: center; gap: 9px; }
+    .step-number { display: inline-grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: var(--blue-deep); color: var(--blue); font: 11px var(--mono); flex-shrink: 0; }
+    .operation > p { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .table-scroll { max-width: 100%; overflow-x: auto; border-radius: 6px; margin: 14px 0 10px; scrollbar-color: #667d9d var(--input); }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; text-align: left; }
+    caption { text-align: left; color: var(--muted); font-size: 11px; padding: 0 0 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    th { color: var(--muted); background: var(--input); font-weight: 500; font-size: 10px; padding: 9px 10px; white-space: nowrap; }
+    td { padding: 8px 10px; vertical-align: top; white-space: nowrap; }
+    tbody tr:nth-child(even) { background: #1e2530; }
+    td:last-child { color: var(--blue); }
+    .symbol-note { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 10px; color: var(--muted); margin-left: 4px; }
+    .result-line { padding: 12px 14px; margin-top: 14px; background: var(--blue-ink); border-left: 2px solid var(--blue); font-family: var(--mono); overflow-wrap: anywhere; line-height: 1.8; font-size: 13px; }
+    .result-line small { display: block; font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--muted); margin-bottom: 7px; }
+    .reading { color: var(--blue) !important; font-size: 12px; margin-top: 12px; }
+    .remainder-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+    .remainder-chips span { display: grid; place-items: center; min-width: 24px; height: 28px; border: 1px solid #5377a5; background: var(--blue-deep); border-radius: 4px; font: 13px var(--mono); color: var(--blue); }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; color: var(--blue); font-size: 12px; padding: 6px 0; }
+    .grouping { margin-top: 22px; padding: 22px; }
+    .grouping > p { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .group-directions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-top: 22px; }
+    .group-direction { min-width: 0; }
+    .group-direction > p { font-size: 12px; color: var(--muted); margin: 8px 0; }
+    .group-line { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .digit-group { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; font-family: var(--mono); background: var(--input); min-width: 45px; }
+    .digit-group b { font-size: 18px; font-weight: 500; color: var(--blue); }
+    .digit-group span { font-size: 12px; margin-top: 3px; }
+    .digit-group .arrow { font-size: 12px; color: var(--muted); margin: 2px 0; }
+    .reference { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+    .reference summary { color: var(--text); font-size: 14px; font-weight: 600; }
+    .reference p { margin: 8px 0; }
+    .reference table { text-align: center; }
+    .reference td, .reference th { padding: 6px 10px; }
+    .reference .table-scroll { max-height: 370px; }
+    .reference thead { position: sticky; top: 0; }
+    .lookup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .lookup-grid .table-scroll { margin: 0; }
+    .lookup-grid table { table-layout: fixed; }
+    .lookup-grid td:first-child, .lookup-grid th:first-child { width: 34%; }
+    .empty { padding: 60px 24px; text-align: center; }
+    .empty .empty-symbol { color: var(--blue); font: 38px var(--mono); margin-bottom: 15px; }
+    .empty p { color: var(--muted); max-width: 40ch; margin: 10px auto 0; }
+    .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); margin-top: 28px; padding-top: 16px; font-size: 11px; color: var(--muted); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 20px; background: var(--blue); color: var(--blue-ink); border-radius: 6px; z-index: 10; font-size: 13px; max-width: calc(100% - 32px); box-shadow: 0 8px 35px #070c1680; }
+    @media (min-width: 1800px) { .workspace { grid-template-columns: 360px minmax(0, 1fr); gap: 36px; } .direction-body { padding: 24px 28px; } table { font-size: 14px; } th { font-size: 12px; } }
+    @media (max-width: 1200px) { .workspace { grid-template-columns: 280px minmax(0, 1fr); gap: 20px; } .converter { padding: 18px; } .directions { grid-template-columns: 1fr; } .group-directions { grid-template-columns: 1fr; } .header-actions .offline { display: none; } .choice-top { align-items: start; flex-direction: column; gap: 6px; } }
+    @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .sidebar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; } .bits-panel { margin-top: 0; } .directions { grid-template-columns: repeat(2, minmax(0, 1fr)); } .group-directions { grid-template-columns: repeat(2, minmax(0, 1fr)); } .page-header { align-items: start; } .math-mark { display: none; } .lesson { margin-top: 8px; } }
+    @media (max-width: 640px) { .page { padding-top: 20px; } .page-header { gap: 12px; padding-bottom: 20px; margin-bottom: 20px; } .page-header p { font-size: 12px; } h1 { font-size: 25px; } .header-actions { display: none; } .sidebar, .directions, .group-directions, .lookup-grid { grid-template-columns: 1fr; } .bits-panel { padding: 18px; } .bits { grid-template-columns: repeat(8, minmax(0, 1fr)); } .base-picker { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; position: relative; padding-bottom: 43px; } .base-choice { padding: 12px; } .swap { position: absolute; bottom: 0; left: calc(50% - 19px); } .pair-input { font-size: 19px; padding: 9px; } .choice-top select { font-size: 12px; } .direction-header, .direction-body, .grouping { padding: 18px; } .method-key { gap: 16px; } .method-key strong { font-size: 12px; } .method-key p { font-size: 11px; } .equation { font-size: 19px; } input { font-size: 16px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+    @media print {
+      :root { color-scheme: light; --bg: #fff; --panel: #fff; --raised: #f0f2f5; --input: #f5f5f5; --text: #111; --muted: #444; --line: #bbb; --blue: #174a88; --blue-deep: #edf2f8; --blue-ink: #edf2f8; }
+      body { font-size: 11px; } .page { padding: 0; } .workspace { display: block; }
+      .sidebar, .header-actions, .swap, .footer, .skip-link, .toast { display: none !important; }
+      .page-header { margin-bottom: 14px; padding-bottom: 12px; } h1 { font-size: 24px; }
+      .base-picker { padding-bottom: 0; grid-template-columns: 1fr 1fr; }
+      .directions, .group-directions { display: block; } .direction, .group-direction { margin-bottom: 18px; }
+      .direction { overflow: visible; } .panel, .direction-header { border-color: #aaa; }
+      .table-scroll, .reference .table-scroll { overflow: visible; max-height: none; }
+      tbody tr:nth-child(even) { background: #f5f5f5; } tr, .result-line, .digit-group { break-inside: avoid; }
+      .direction-header, h3, h4 { break-after: avoid; } .grouping { break-before: auto; }
+      .result-line { background: #edf2f8; } .reference { display: none; } .pair-input, select { border: 0; padding-left: 0; }
+      .math-mark { display: none; } summary { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#lesson">Saltar a las operaciones</a>
+  <div class="page">
+    <header class="page-header">
+      <div class="identity">
+        <div class="math-mark" aria-hidden="true"><span>n<sub>b</sub></span></div>
+        <div><h1>Conversor de bases numéricas</h1><p>El mismo número. Distintas bases. Cada operación, a la vista.</p></div>
+      </div>
+      <div class="header-actions"><span class="offline">Funciona sin conexión</span><button class="button" id="print-button" type="button">Imprimir explicación</button></div>
+    </header>
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Conversor e inspector de bits">
+        <section class="panel converter" aria-labelledby="converter-title">
+          <h2 id="converter-title">Tu número</h2>
+          <p class="section-intro">Escribe en cualquier campo. Todos representan la misma cantidad.</p>
+          <p class="help">Prueba un valor decimal</p>
+          <div class="quick-values" aria-label="Valores de ejemplo en decimal">
+            <button class="quick" type="button" data-value="0" aria-pressed="false">0</button>
+            <button class="quick" type="button" data-value="42" aria-pressed="false">42</button>
+            <button class="quick" type="button" data-value="255" aria-pressed="true">255</button>
+            <button class="quick" type="button" data-value="1024" aria-pressed="false">1024</button>
+            <button class="quick" type="button" data-value="65535" aria-pressed="false">65535</button>
+            <button class="quick" type="button" data-value="16777215" aria-pressed="false" title="16777215 en decimal">Máx. 24 bits</button>
+          </div>
+          <div class="field">
+            <div class="field-heading"><label for="dec">Decimal <span class="base-label">base 10</span></label><button class="copy" type="button" data-copy="dec" aria-label="Copiar decimal">Copiar</button></div>
+            <input id="dec" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="dec-help input-error" value="255">
+            <p class="help" id="dec-help">Dígitos del 0 al 9</p>
+          </div>
+          <div class="field">
+            <div class="field-heading"><label for="hex">Hexadecimal <span class="base-label">base 16</span></label><button class="copy" type="button" data-copy="hex" aria-label="Copiar hexadecimal">Copiar</button></div>
+            <input id="hex" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-describedby="hex-help input-error" value="FF">
+            <p class="help" id="hex-help">Dígitos del 0 al 9 y letras de la A a la F</p>
+          </div>
+          <div class="field">
+            <div class="field-heading"><label for="bin">Binario <span class="base-label">base 2</span></label><button class="copy" type="button" data-copy="bin" aria-label="Copiar binario">Copiar</button></div>
+            <input id="bin" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="bin-help input-error" value="11111111">
+            <p class="help" id="bin-help">Solo 0 y 1</p>
+          </div>
+          <div class="field">
+            <div class="field-heading"><label for="oct">Octal <span class="base-label">base 8</span></label><button class="copy" type="button" data-copy="oct" aria-label="Copiar octal">Copiar</button></div>
+            <input id="oct" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="oct-help input-error" value="377">
+            <p class="help" id="oct-help">Dígitos del 0 al 7</p>
+          </div>
+          <p class="error" id="input-error" role="alert" hidden></p>
+          <p class="help scope">Enteros no negativos, hasta 256 bits. Sin signos ni decimales. Se admiten prefijos 0b, 0o y 0x en su base correspondiente.</p>
+        </section>
+        <section class="panel bits-panel" aria-labelledby="bits-title">
+          <h2 id="bits-title">Inspector de bits</h2>
+          <p class="help">Pulsa un bit para cambiar su valor.</p>
+          <p class="mono" id="raw-16bit"></p>
+          <div class="bits" id="bit-container" aria-label="16 bits de menor peso"></div>
+          <p class="help bit-note" id="bit-note">Se muestran los 16 bits de menor peso.</p>
+          <dl class="stats">
+            <div><dt>Almacenamiento mínimo</dt><dd id="stat-bytes"></dd></div>
+            <div><dt>Paridad de los bits a 1</dt><dd id="stat-parity"></dd></div>
+            <div><dt>ASCII del byte inferior</dt><dd id="stat-ascii"></dd></div>
+          </dl>
+        </section>
+      </aside>
+      <section class="lesson" id="lesson" aria-labelledby="lesson-title">
+        <div class="lesson-header"><h2 id="lesson-title">De una base a otra, paso a paso</h2><p>Elige dos bases. Verás la ida y la vuelta del mismo número.</p></div>
+        <div class="base-picker">
+          <div class="panel base-choice">
+            <div class="choice-top"><label for="base-a">BASE A</label><select id="base-a"></select></div>
+            <label class="pair-label" for="value-a" id="value-a-label">Número en base 10</label>
+            <input class="pair-input" id="value-a" type="text" autocomplete="off" spellcheck="false" aria-describedby="input-error" value="255">
+          </div>
+          <button class="button swap" id="swap-bases" type="button" aria-label="Intercambiar las bases A y B" title="Intercambiar bases">⇄</button>
+          <div class="panel base-choice">
+            <div class="choice-top"><label for="base-b">BASE B</label><select id="base-b"></select></div>
+            <label class="pair-label" for="value-b" id="value-b-label">Número en base 2</label>
+            <input class="pair-input" id="value-b" type="text" autocomplete="off" spellcheck="false" aria-describedby="input-error" value="11111111">
+          </div>
+        </div>
+        <div class="method-key">
+          <p><strong><span>×</span> Hacia decimal: multiplicar</strong>Cada cifra por la potencia de su posición. Después, suma.</p>
+          <p><strong><span>÷</span> Desde decimal: dividir</strong>Divide entre la nueva base. Lee los restos de abajo arriba.</p>
+        </div>
+        <div id="lesson-content">
+          <div class="directions" id="directions"></div>
+          <section class="panel grouping" id="grouping" aria-labelledby="grouping-title"></section>
+        </div>
+        <div class="panel empty" id="empty-state" hidden>
+          <div class="empty-symbol" aria-hidden="true">A ⇄ B</div>
+          <h3 id="empty-title">Escribe un número para empezar</h3>
+          <p id="empty-description">También puedes elegir uno de los valores de ejemplo.</p>
+        </div>
+        <details class="reference" id="reference">
+          <summary>Tabla de consulta: dígitos y equivalencias</summary>
+          <p class="help" id="reference-note"></p>
+          <div id="reference-content"></div>
+        </details>
+        <p class="sr-only" id="conversion-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+    </main>
+    <footer class="footer"><span>El subíndice indica la base: 10<sub>2</sub> = 2<sub>10</sub>.</span><span>Sin instalación ni conexión. Guarda este HTML y sigue practicando.</span></footer>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <noscript><p class="error">Activa JavaScript en tu navegador para convertir números y mostrar las operaciones.</p></noscript>
+  <script>
+    'use strict';
+
+    // Aritmética exacta: ningún número completo se convierte a Number.
+    const DIGITS = '0123456789ABCDEF';
+    const SUPPORTED_BASES = [2, 8, 10, 16];
+    const MAX_BITS = 256;
+    const MAX_VALUE = (1n << BigInt(MAX_BITS)) - 1n;
+    const BASE_NAMES = { 2: 'Binario', 8: 'Octal', 10: 'Decimal', 16: 'Hexadecimal' };
+    const BIT_WIDTHS = { 2: 1, 8: 3, 16: 4 };
+    const FIXED_BASES = { dec: 10, hex: 16, bin: 2, oct: 8 };
+    const state = { value: 255n, a: 10, b: 2, valid: true, invalidSource: null };
+    const $ = id => document.getElementById(id);
+    let toastTimer;
+
+    function baseName(base) { return BASE_NAMES[base] || `Base ${base}`; }
+    function format(value, base) { return value.toString(base).toUpperCase(); }
+    function notation(value, base) { return `${format(value, base)}<sub>${base}</sub>`; }
+    function inputBases() { return { ...FIXED_BASES, 'value-a': state.a, 'value-b': state.b }; }
+    function allowedDigits(base) { return base <= 10 ? `0 a ${base - 1}` : `0 a 9 y A a ${DIGITS[base - 1]}`; }
+
+    function parseNumber(raw, base) {
+      if (!SUPPORTED_BASES.includes(base)) throw new Error('Elige una de las bases disponibles: 2, 8, 10 o 16.');
+      let text = raw.trim().toUpperCase();
+      if (!text) return null;
+      if (text.length > 258) throw new Error('El número es demasiado largo. El límite es de 256 bits.');
+      const prefix = { 2: '0B', 8: '0O', 16: '0X' }[base];
+      if (prefix && text.startsWith(prefix)) text = text.slice(2);
+      if (!text) throw new Error('Escribe al menos un dígito después del prefijo.');
+      if (/[+\-.,]/.test(text)) throw new Error('Utiliza un entero no negativo, sin signos, decimales ni separadores.');
+      let result = 0n;
+      for (const char of text) {
+        const digit = DIGITS.indexOf(char);
+        if (digit < 0 || digit >= base) throw new Error(`Dígito no válido en base ${base}. Utiliza ${allowedDigits(base)}.`);
+        result = result * BigInt(base) + BigInt(digit);
+        if (result > MAX_VALUE) throw new Error('El número supera los 256 bits. Prueba con un valor menor.');
+      }
+      return result;
+    }
+
+    function divisionSteps(value, base) {
+      const rows = [];
+      let dividend = value;
+      const divisor = BigInt(base);
+      do {
+        const quotient = dividend / divisor;
+        const remainder = dividend % divisor;
+        rows.push({ dividend, divisor, quotient, remainder, digit: DIGITS[Number(remainder)] });
+        dividend = quotient;
+      } while (dividend > 0n);
+      return rows;
+    }
+
+    function positionalSteps(value, base) {
+      const digits = format(value, base);
+      return [...digits].map((symbol, index) => {
+        const position = digits.length - 1 - index;
+        const digit = BigInt(DIGITS.indexOf(symbol));
+        const power = BigInt(base) ** BigInt(position);
+        return { symbol, digit, position, power, product: digit * power };
+      });
+    }
+
+    function binaryGroups(value, base) {
+      const width = BIT_WIDTHS[base];
+      if (!width) throw new Error('Esta base no admite grupos de bits completos.');
+      const binary = format(value, 2);
+      const padded = binary.padStart(Math.ceil(binary.length / width) * width, '0');
+      const groups = [];
+      for (let index = 0; index < padded.length; index += width) {
+        const bits = padded.slice(index, index + width);
+        groups.push({ bits, digit: DIGITS[Number(BigInt('0b' + bits))] });
+      }
+      return { width, binary, padded, padding: padded.length - binary.length, groups };
+    }
+
+    function table(headers, rows, caption) {
+      return `<div class="table-scroll" tabindex="0" role="region" aria-label="${caption}"><table><caption>${caption}</caption><thead><tr>${headers.map(header => `<th scope="col">${header}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+    }
+
+    function longTable(headers, rows, caption) {
+      const preview = 12;
+      if (rows.length <= preview) return table(headers, rows, caption);
+      return table(headers, rows.slice(0, preview), caption) + `<details class="more-rows"><summary>Ver las ${rows.length - preview} filas restantes</summary>${table(headers, rows.slice(preview), `${caption} (continuación)`)}</details>`;
+    }
+
+    function multiplicationHTML(value, base, step) {
+      const rows = positionalSteps(value, base);
+      const rendered = rows.map(row => `<tr><td>${row.symbol}${row.digit >= 10n ? `<span class="symbol-note">(${row.digit})</span>` : ''}</td><td>${base}<sup>${row.position}</sup> = ${row.power}</td><td>${row.digit} × ${row.power}</td><td>${row.product}</td></tr>`);
+      const sum = rows.map(row => row.product).join(' + ');
+      return `<section class="operation"><h4><span class="step-number">${step}</span>Multiplica y suma las potencias</h4><p>Empieza con la posición 0 a la derecha. Multiplica cada cifra por ${base} elevado a su posición.</p>${longTable(['Cifra', 'Peso', 'Multiplicación', 'Aporta'], rendered, `Desarrollo posicional en base ${base}. Operaciones en decimal.`)}<div class="result-line"><small>Suma de las aportaciones</small>${sum} = <strong>${notation(value, 10)}</strong></div></section>`;
+    }
+
+    function divisionHTML(value, base, step) {
+      const rows = divisionSteps(value, base);
+      const rendered = rows.map(row => `<tr><td>${row.dividend} ÷ ${base}</td><td>${row.quotient}</td><td>${row.remainder}${row.remainder >= 10n ? `<span class="symbol-note">→ ${row.digit}</span>` : ''}</td></tr>`);
+      const digits = rows.map(row => row.digit).reverse();
+      return `<section class="operation"><h4><span class="step-number">${step}</span>Divide entre ${base}</h4><p>Divide el cociente de nuevo hasta que sea 0. En cada fila: dividendo = divisor × cociente + resto.</p>${longTable(['División', 'Cociente', 'Resto'], rendered, `Divisiones sucesivas entre ${base}. Operaciones en decimal.`)}<p class="reading">↑ Lee los restos de abajo arriba</p><div class="remainder-chips" aria-label="Dígitos del resultado: ${digits.join(' ')}">${digits.map(digit => `<span aria-hidden="true">${digit}</span>`).join('')}</div><div class="result-line"><small>Resultado en base ${base}</small><strong>${notation(value, base)}</strong></div></section>`;
+    }
+
+    function directionHTML(value, from, to, label) {
+      let body = '';
+      if (from === to) {
+        body = `<section class="operation"><h4>La base no cambia</h4><p>Las dos representaciones son iguales. Elige bases distintas para comparar los métodos.</p><div class="result-line">${notation(value, from)} = ${notation(value, to)}</div></section>`;
+      } else {
+        let step = 1;
+        if (from !== 10) body += multiplicationHTML(value, from, step++);
+        if (from !== 10 && to !== 10) body += `<p class="help" style="margin-top:16px">Usamos ${notation(value, 10)} como puente para llegar a base ${to}.</p>`;
+        if (to !== 10) body += divisionHTML(value, to, step);
+      }
+      return `<article class="panel direction"><header class="direction-header"><div class="direction-heading"><span class="direction-tag">${label}</span><h3>${baseName(from)} → ${baseName(to).toLowerCase()}</h3></div><p class="equation">${notation(value, from)} <span class="equals">=</span> ${notation(value, to)}</p></header><div class="direction-body">${body}</div></article>`;
+    }
+
+    function groupingDirectionHTML(value, from, to, label) {
+      const source = binaryGroups(value, from);
+      const target = binaryGroups(value, to);
+      const forwardChips = source.groups.map(group => `<div class="digit-group"><b>${group.digit}</b><span class="arrow" aria-hidden="true">↓</span><span>${group.bits}</span></div>`).join('');
+      const targetChips = target.groups.map(group => `<div class="digit-group"><span>${group.bits}</span><span class="arrow" aria-hidden="true">↓</span><b>${group.digit}</b></div>`).join('');
+      return `<section class="group-direction"><h4>${label}: base ${from} → base ${to}</h4><p>Cambia cada cifra de base ${from} por ${source.width} ${source.width === 1 ? 'bit' : 'bits'}, usando la tabla.</p><div class="group-line" aria-label="Cifras de origen y su equivalencia binaria">${forwardChips}</div><p>Conserva los ceros interiores. Quita solo los ceros del inicio y agrupa desde la derecha en bloques de ${target.width}.</p><div class="group-line" aria-label="Grupos binarios y cifras de destino">${targetChips}</div><p>${target.padding ? `Se añaden ${target.padding} ${target.padding === 1 ? 'cero a la izquierda' : 'ceros a la izquierda'} para completar el primer grupo; el valor no cambia.` : 'Los grupos están completos; no hace falta añadir ceros.'}</p><div class="result-line">${notation(value, from)} = ${notation(value, to)}</div></section>`;
+    }
+
+    function weightTableHTML(value, base) {
+      const rows = positionalSteps(value, base);
+      return table(['Posición', ...rows.map(row => row.position)], [
+        `<tr><th scope="row">Potencia</th>${rows.map(row => `<td>${base}<sup>${row.position}</sup></td>`).join('')}</tr>`,
+        `<tr><th scope="row">Peso decimal</th>${rows.map(row => `<td>${row.power}</td>`).join('')}</tr>`,
+        `<tr><th scope="row">Cifra</th>${rows.map(row => `<td>${row.symbol}</td>`).join('')}</tr>`,
+        `<tr><th scope="row">Aportación</th>${rows.map(row => `<td>${row.product}</td>`).join('')}</tr>`
+      ], `Tabla posicional de ${format(value, base)} en base ${base}`);
+    }
+
+    function renderGrouping() {
+      const { value, a, b } = state;
+      if (a !== b && BIT_WIDTHS[a] && BIT_WIDTHS[b]) {
+        $('grouping').innerHTML = `<h3 id="grouping-title">Otra forma: convierte con tablas</h3><p>Las bases ${a} y ${b} son potencias de 2. Puedes pasar por binario agrupando bits, sin dividir.</p><div class="group-directions">${groupingDirectionHTML(value, a, b, 'A → B')}${groupingDirectionHTML(value, b, a, 'B → A')}</div><p class="help">Abre la tabla de consulta de abajo para encontrar la equivalencia de cada grupo.</p>`;
+      } else {
+        $('grouping').innerHTML = `<h3 id="grouping-title">El número sobre la tabla posicional</h3><p>Multiplica cada cifra por su peso. Las dos tablas suman ${notation(value, 10)}: cambia la escritura, se conserva la cantidad.</p><div class="group-directions"><section class="group-direction"><h4>Base A: ${baseName(a).toLowerCase()}</h4>${weightTableHTML(value, a)}</section><section class="group-direction"><h4>Base B: ${baseName(b).toLowerCase()}</h4>${weightTableHTML(value, b)}</section></div><p class="help">Para practicar la agrupación de bits, elige dos bases entre 2, 8 y 16. Por ejemplo, binario y hexadecimal.</p>`;
+      }
+    }
+
+    function closedConversionTable(base, width) {
+      const limit = base === 8 ? 8 : 16;
+      const rows = Array.from({ length: limit }, (_, number) => {
+        const symbol = DIGITS[number];
+        const binary = number.toString(2).padStart(width, '0');
+        return `<tr><th scope="row" class="mono">${symbol}</th><td class="mono">${binary}</td></tr>`;
+      });
+      return table(['Dígito', 'Binario'], rows, `${baseName(base)}: tabla cerrada de ${width} bits`);
+    }
+
+    function renderReference() {
+      $('reference-note').textContent = 'Estas son las tablas cerradas de clase. Cada dígito octal equivale a 3 bits y cada dígito hexadecimal a 4 bits. Conserva los ceros de cada grupo.';
+      $('reference-content').innerHTML = `<div class="lookup-grid"><div>${closedConversionTable(8, 3)}</div><div>${closedConversionTable(16, 4)}</div></div>`;
+    }
+
+    function renderBits() {
+      $('bit-container').innerHTML = Array.from({ length: 16 }, (_, index) => {
+        const bit = 15 - index;
+        return `<button type="button" class="bit" data-bit="${bit}" id="bit-${bit}" aria-pressed="false" aria-label="Bit ${bit}, peso ${2 ** bit}"><span id="bit-val-${bit}">0</span><small>b${bit}</small></button>`;
+      }).join('');
+    }
+
+    function asciiLabel(value) {
+      const byte = Number(value & 255n);
+      const hex = byte.toString(16).toUpperCase().padStart(2, '0');
+      if (byte > 127) return `0x${hex}: fuera de ASCII`;
+      if (byte === 32) return 'Espacio (0x20)';
+      if (byte === 127) return 'DEL (0x7F)';
+      if (byte < 32) {
+        const controlNames = { 0: 'NUL', 9: 'TAB', 10: 'LF', 13: 'CR', 27: 'ESC' };
+        return `${controlNames[byte] || 'Control'} (0x${hex})`;
+      }
+      return `${String.fromCharCode(byte)} (0x${hex})`;
+    }
+
+    function updateBitsAndStats() {
+      const value = state.value;
+      const lowest16 = format(value & 65535n, 2).padStart(16, '0');
+      $('raw-16bit').textContent = state.valid ? lowest16.match(/.{4}/g).join(' ') : 'Sin número válido';
+      for (let index = 0; index < 16; index++) {
+        const on = state.valid && (value & (1n << BigInt(index))) !== 0n;
+        $(`bit-${index}`).setAttribute('aria-pressed', String(on));
+        $(`bit-${index}`).disabled = !state.valid;
+        $(`bit-val-${index}`).textContent = on ? '1' : '0';
+      }
+      $('bit-note').textContent = state.valid && value > 65535n ? 'Solo ves los 16 bits inferiores. Los bits superiores se conservan al pulsar.' : 'Se muestran los 16 bits de menor peso: b15 a b0.';
+      if (!state.valid) {
+        ['stat-bytes', 'stat-parity', 'stat-ascii'].forEach(id => $(id).textContent = 'Sin datos');
+        return;
+      }
+      const binary = format(value, 2);
+      const bits = binary.length;
+      const bytes = Math.ceil(bits / 8);
+      const ones = [...binary].filter(digit => digit === '1').length;
+      $('stat-bytes').textContent = `${bytes} ${bytes === 1 ? 'byte' : 'bytes'} (${bits} ${bits === 1 ? 'bit' : 'bits'})`;
+      $('stat-parity').textContent = `${ones % 2 === 0 ? 'Par' : 'Impar'} (${ones} ${ones === 1 ? 'uno' : 'unos'})`;
+      $('stat-ascii').textContent = asciiLabel(value);
+    }
+
+    function updateLabels() {
+      ['a', 'b'].forEach(side => {
+        const base = state[side];
+        $(`base-${side}`).value = String(base);
+        $(`value-${side}-label`).textContent = `Número en base ${base}`;
+        $(`value-${side}`).inputMode = base <= 10 ? 'numeric' : 'text';
+      });
+    }
+
+    function updateAll(sourceId = null) {
+      updateLabels();
+      for (const [id, base] of Object.entries(inputBases())) {
+        if (id !== sourceId) $(id).value = state.valid ? format(state.value, base) : '';
+        $(id).setAttribute('aria-invalid', 'false');
+      }
+      $('input-error').hidden = true;
+      $('lesson-content').hidden = !state.valid;
+      $('empty-state').hidden = state.valid;
+      $('print-button').disabled = !state.valid;
+      document.querySelectorAll('[data-copy]').forEach(button => button.disabled = !state.valid);
+      document.querySelectorAll('[data-value]').forEach(button => button.setAttribute('aria-pressed', String(state.valid && BigInt(button.dataset.value) === state.value)));
+      updateBitsAndStats();
+      if (state.valid) {
+        $('directions').innerHTML = directionHTML(state.value, state.a, state.b, 'A → B') + directionHTML(state.value, state.b, state.a, 'B → A');
+        renderGrouping();
+        $('conversion-status').textContent = `Conversión actualizada. Base ${state.a}: ${format(state.value, state.a)}. Base ${state.b}: ${format(state.value, state.b)}.`;
+      }
+    }
+
+    function readInput(sourceId) {
+      try {
+        const value = parseNumber($(sourceId).value, inputBases()[sourceId]);
+        state.valid = value !== null;
+        state.invalidSource = state.valid ? null : sourceId;
+        if (state.valid) state.value = value;
+        updateAll(sourceId);
+        if (!state.valid) showEmpty('Escribe un número para empezar', 'También puedes elegir uno de los valores de ejemplo.');
+      } catch (error) {
+        state.valid = false;
+        state.invalidSource = sourceId;
+        updateAll(sourceId);
+        $(sourceId).setAttribute('aria-invalid', 'true');
+        $('input-error').textContent = error.message;
+        $('input-error').hidden = false;
+        showEmpty('Revisa el número de entrada', error.message);
+      }
+    }
+
+    function showEmpty(title, description) {
+      $('empty-title').textContent = title;
+      $('empty-description').textContent = description;
+      $('conversion-status').textContent = `${title}. ${description}`;
+    }
+
+    function setValue(value) {
+      state.value = value;
+      state.valid = true;
+      state.invalidSource = null;
+      updateAll();
+    }
+
+    function changeBases() {
+      state.a = Number($('base-a').value);
+      state.b = Number($('base-b').value);
+      if (state.invalidSource) readInput(state.invalidSource);
+      else updateAll();
+      renderReference();
+    }
+
+    function notify(message) {
+      clearTimeout(toastTimer);
+      $('toast').textContent = message;
+      $('toast').hidden = false;
+      toastTimer = setTimeout(() => $('toast').hidden = true, 3000);
+    }
+
+    async function copyValue(id) {
+      if (!state.valid) return;
+      const input = $(id);
+      const text = format(state.value, inputBases()[id]);
+      let copied = false;
+      if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(text); copied = true; } catch { /* file:// puede denegar el permiso. */ }
+      }
+      if (!copied) {
+        const previousFocus = document.activeElement;
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const previousValue = input.value;
+        input.value = text;
+        input.select();
+        try { copied = document.execCommand('copy'); } catch { copied = false; }
+        if (copied) {
+          input.value = previousValue;
+          if (previousFocus) previousFocus.focus({ preventScroll: true });
+          input.setSelectionRange(start, end);
+        }
+      }
+      notify(copied ? 'Número copiado.' : 'No se pudo copiar. El número está seleccionado: pulsa Ctrl+C o ⌘C.');
+    }
+
+    function init() {
+      const options = SUPPORTED_BASES.map(base => `<option value="${base}">${BASE_NAMES[base]} · ${base}</option>`).join('');
+      $('base-a').innerHTML = options;
+      $('base-b').innerHTML = options;
+      renderBits();
+      updateAll();
+      renderReference();
+      for (const id of Object.keys(inputBases())) {
+        $(id).addEventListener('input', () => {
+          // La validación es inmediata: nunca se enseña un resultado antiguo como válido.
+          readInput(id);
+        });
+      }
+      document.querySelectorAll('[data-value]').forEach(button => button.addEventListener('click', () => setValue(BigInt(button.dataset.value))));
+      document.querySelectorAll('[data-bit]').forEach(button => button.addEventListener('click', () => {
+        if (state.valid) setValue(state.value ^ (1n << BigInt(button.dataset.bit)));
+      }));
+      document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', () => copyValue(button.dataset.copy)));
+      ['base-a', 'base-b'].forEach(id => $(id).addEventListener('change', changeBases));
+      $('swap-bases').addEventListener('click', () => {
+        if (state.invalidSource === 'value-a') state.invalidSource = 'value-b';
+        else if (state.invalidSource === 'value-b') state.invalidSource = 'value-a';
+        [$('value-a').value, $('value-b').value] = [$('value-b').value, $('value-a').value];
+        [state.a, state.b] = [state.b, state.a];
+        updateLabels();
+        if (state.invalidSource) readInput(state.invalidSource);
+        else updateAll();
+        renderReference();
+      });
+      $('print-button').addEventListener('click', () => window.print());
+      const printDetails = [];
+      window.addEventListener('beforeprint', () => document.querySelectorAll('.more-rows').forEach(details => { if (!details.open) { printDetails.push(details); details.open = true; } }));
+      window.addEventListener('afterprint', () => { printDetails.forEach(details => details.open = false); printDetails.length = 0; });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
